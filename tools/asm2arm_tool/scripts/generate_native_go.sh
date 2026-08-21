@@ -22,7 +22,7 @@ done
 # 获取脚本所在目录的绝对路径
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/cpu_detect.sh"
-check_kunpeng_cpu
+check_build_host
 
 TOOL_DIR="$(dirname "${SCRIPT_DIR}")"   # asm2arm_tool
 PROJECT_DIR="$(dirname $(dirname "${TOOL_DIR}"))"   # sonic
@@ -126,8 +126,8 @@ if [ -d "${SRC_DIR}" ]; then
             echo ">>> Processing ${src_file}..."
 
             # 处理neon目录
-            NEON_FILE="${PROJECT_DIR}/internal/native/neon/${base_name}_arm64.go"
-            if [ -f "${NEON_FILE}" ]; then
+            NEON_TMPL="${TMPL_DIR}/${base_name}.tmpl"
+            if [ -f "${NEON_TMPL}" ]; then
                 echo ""
                 echo ">>> Processing for neon..."
                 asm_file="${NEON_ASM_DIR}/${base_name}.s"
@@ -137,7 +137,7 @@ if [ -d "${SRC_DIR}" ]; then
                 echo ">>> Compiling to assembly (neon)... --> ${asm_file}"
                 ${CLANG_PATH} \
                 -g0 -fverbose-asm -fstack-usage -fsigned-char -Wa,--no-size-directive -fno-ident -fno-jump-tables \
-                -ffixed-x28 -ffixed-x9 -Wno-error -Wno-nullability-completeness -Wno-incompatible-pointer-types \
+                -ffixed-x28 -ffixed-x18 -ffixed-x9 -Wno-error -Wno-nullability-completeness -Wno-incompatible-pointer-types \
                 -mllvm=--go-frame -mllvm=--enable-shrink-wrap=0 -mno-red-zone \
                 -fno-stack-protector -nostdlib -O3 -fno-asynchronous-unwind-tables -fno-builtin -fno-exceptions \
                 -march=armv8-a+simd -I${SIMDE_INCLUDE_DIR} -S -o "${asm_file}" "${src_file}"
@@ -146,8 +146,8 @@ if [ -d "${SRC_DIR}" ]; then
                 if [ ! -f "${asm_file}" ]; then
                     echo "Error: Assembly file not generated for neon."
                 else
-                    echo ">>> Execute SL mode for neon..."
-                    ${TOOL_PATH} --debug --mode=SL --source=${asm_file} --goproto=${NEON_FILE} --output=${NEON_OUTPUT} --link-ld=${SCRIPT_DIR}/link.ld \
+                    echo ">>> Execute JIT mode for neon..."
+                    ${TOOL_PATH} --debug --mode=JIT --source=${asm_file} --output=${NEON_OUTPUT} --link-ld=${SCRIPT_DIR}/link.ld --tmpl=${NEON_TMPL} \
                     --package=neon 2>${cerr_log}
 
                     if [ $? -eq 0 ]; then
@@ -169,7 +169,7 @@ if [ -d "${SRC_DIR}" ]; then
                 echo ">>> Compiling to assembly (sve)... --> ${asm_file}"
                 ${CLANG_PATH} \
                 -g0 -fverbose-asm -fstack-usage -fsigned-char -Wa,--no-size-directive -fno-ident -fno-jump-tables \
-                -ffixed-x28 -ffixed-x9 -Wno-error -Wno-nullability-completeness -Wno-incompatible-pointer-types\
+                -ffixed-x28 -ffixed-x18 -ffixed-x9 -Wno-error -Wno-nullability-completeness -Wno-incompatible-pointer-types\
                 -mllvm -disable-constant-hoisting -mllvm=--go-frame -fno-addrsig -no-integrated-as \
                 -mno-red-zone -fno-stack-protector -nostdlib -O3 -fno-asynchronous-unwind-tables -fno-builtin -fno-exceptions \
                 -march=armv8-a+sve+aes -I${SIMDE_INCLUDE_DIR} -D__SVE__ -S -o "${asm_file}" "${src_file}"
@@ -202,7 +202,7 @@ if [ -d "${SRC_DIR}" ]; then
                 echo ">>> Compiling to assembly (sve)... --> ${asm_file}"
                 ${CLANG_PATH} \
                 -g0 -fverbose-asm -fstack-usage -fsigned-char -Wa,--no-size-directive -fno-ident -fno-jump-tables \
-                -ffixed-x28 -ffixed-x9 -Wno-error -Wno-nullability-completeness -Wno-incompatible-pointer-types\
+                -ffixed-x28 -ffixed-x18 -ffixed-x9 -Wno-error -Wno-nullability-completeness -Wno-incompatible-pointer-types\
                 -mllvm -disable-constant-hoisting -mllvm=--go-frame -fno-addrsig -no-integrated-as \
                 -mno-red-zone -fno-stack-protector -nostdlib -O3 -fno-asynchronous-unwind-tables -fno-builtin -fno-exceptions \
                 -march=armv8-a+sve+aes -I${SIMDE_INCLUDE_DIR} -D__SVE__ -S -o "${asm_file}" "${src_file}"
