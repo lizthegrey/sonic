@@ -95,7 +95,7 @@ parse_with_padding:
     WORD $0xa907dff8  // 	stp	x24, x23, [sp, #120]
     WORD $0xa908d7f6  // 	stp	x22, x21, [sp, #136]
     WORD $0xa909cff4  // 	stp	x20, x19, [sp, #152]
-    WORD $0x043f57df  // 	addvl	sp, sp, #-2
+    WORD $0xd10103ff  // 	sub	sp, sp, #64  (was	addvl	sp, sp, #-2; frame sized for VL=32)
     WORD $0xd10043ff  // 	sub	sp, sp, #16
     WORD $0xa93ffbfd  // 	stp	fp, lr, [sp, #-8]
     WORD $0xaa0003e8  // 	mov	x8, x0
@@ -1624,7 +1624,7 @@ LBB5_300:
     WORD $0x1a83814a  // 	csel	w10, w10, w3, hi
     WORD $0x93407d40  // 	sxtw	x0, w10
     WORD $0x910043ff  // 	add	sp, sp, #16
-    WORD $0x043f505f  // 	addvl	sp, sp, #2
+    WORD $0x910103ff  // 	add	sp, sp, #64  (was	addvl	sp, sp, #2; frame sized for VL=32)
     WORD $0xa949cff4  // 	ldp	x20, x19, [sp, #152]
     WORD $0xf9402ffb  // 	ldr	x27, [sp, #88]
     WORD $0xa948d7f6  // 	ldp	x22, x21, [sp, #136]

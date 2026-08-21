@@ -47,11 +47,12 @@ jobs:
 
       - name: SVE Natives
         # Runs the SVE suites when the hardware qualifies, and reports plainly
-        # when it does not. Not gated to failure: no GitHub-hosted arm64 runner
-        # is 256-bit SVE (Cobalt 100 is Neoverse N2 at 128-bit), so this skips
-        # everywhere today and exists so that stops being invisible. Anyone with
-        # 256-bit hardware -- Graviton3, Kunpeng -- can set SONIC_REQUIRE_SVE=1
-        # to turn a skip into a failure.
+        # when it does not. The natives support 128- and 256-bit vectors, so a
+        # hosted arm64 runner with SVE (Cobalt 100 is Neoverse N2 at 128-bit)
+        # exercises them; one without skips visibly instead of printing "ok"
+        # for a suite that never ran. Not gated to failure until the hosted
+        # runners' SVE exposure is confirmed; anyone on known SVE hardware can
+        # set SONIC_REQUIRE_SVE=1 to turn a skip into a failure.
         run: |
           GOMAXPROCS=4 go test -v ./internal/native/sve_wrapgoc/ ./internal/native/sve_linkname/
 

@@ -35,7 +35,7 @@ get_by_path:
     WORD $0xa90cdff8  // 	stp	x24, x23, [sp, #200]
     WORD $0xa90dd7f6  // 	stp	x22, x21, [sp, #216]
     WORD $0xa90ecff4  // 	stp	x20, x19, [sp, #232]
-    WORD $0x043f57df  // 	addvl	sp, sp, #-2
+    WORD $0xd10103ff  // 	sub	sp, sp, #64  (was	addvl	sp, sp, #-2; frame sized for VL=32)
     WORD $0xd10043ff  // 	sub	sp, sp, #16
     WORD $0xa93ffbfd  // 	stp	fp, lr, [sp, #-8]
     WORD $0xaa0303f9  // 	mov	x25, x3
@@ -6362,7 +6362,7 @@ LBB0_1188:
 LBB0_1189:
     WORD $0xaa0803e0  // 	mov	x0, x8
     WORD $0x910043ff  // 	add	sp, sp, #16
-    WORD $0x043f505f  // 	addvl	sp, sp, #2
+    WORD $0x910103ff  // 	add	sp, sp, #64  (was	addvl	sp, sp, #2; frame sized for VL=32)
     WORD $0xa94ecff4  // 	ldp	x20, x19, [sp, #232]
     WORD $0xf94057fb  // 	ldr	x27, [sp, #168]
     WORD $0xa94dd7f6  // 	ldp	x22, x21, [sp, #216]

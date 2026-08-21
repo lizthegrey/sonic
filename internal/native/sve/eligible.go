@@ -33,39 +33,42 @@ import (
 	xcpu "golang.org/x/sys/cpu"
 )
 
-// The SVE vector lengths, in bytes, that each flavour of native supports.
-//
-// Two independent things have to line up for a vector length to work.
+// Two independent things have to line up for the SVE natives to work at a
+// given vector length.
 //
 // The kernels must compute the right answer at that width. They originally did
 // not: native/scanning.h read predicate registers as fixed 32-bit lane masks,
 // so it was correct only at 32 bytes. That is now expressed vector-length
 // agnostically in native/sve_compat.h, so the results are right at any width.
 //
-// And the frame metadata handed to Go must match, because scalable spill slots
-// are VL bytes wide. Get that wrong and results are still correct but unwinding
-// is not: Go computes the wrong caller SP, so a fault inside a native cannot be
-// recovered and precise GC stack scanning walks the wrong frame.
-//
-// sve_wrapgoc loads through internal/loader, so its frame metadata is ordinary
-// Go data; it carries one pcsp table per width and picks at load time.
-//
-// sve_linkname is statically linked and its frame sizes live in the TEXT
-// directives of generated Go assembly (NOSPLIT, $80 vs $64), fixed when the
-// package is built. Supporting a second width there needs a second set of
-// symbols, so it stays at the width it was built for.
-var WrapgocVectorLengths = [...]int{16, 32}
+// And the frame metadata handed to Go must match, because a native's scalable
+// spill area is VL-sized. Get that wrong and results are still correct but
+// unwinding is not: Go computes the wrong caller SP, so a fault inside a
+// native cannot be recovered and precise GC stack scanning walks the wrong
+// frame. Rather than carry one table per width, the natives are generated with
+// every scalable allocation sized for MaxVectorLength (asm2arm_tool --max-vl),
+// so the frame is identical on every machine with VL <= MaxVectorLength and a
+// single table serves both flavours -- including sve_linkname, whose frame
+// sizes are baked into the TEXT directives of generated Go assembly.
 
-// LinknameVectorLength is the single width sve_linkname is built for.
-const LinknameVectorLength = 32
+// MaxVectorLength is the SVE vector length, in bytes, that the natives' stack
+// frames are sized for. Must match SVE_MAX_VL in
+// tools/asm2arm_tool/scripts/generate_native_go.sh. A machine with a wider
+// vector would overrun those frames, so it is not eligible.
+const MaxVectorLength = 32
 
-// RequiredVectorLength is the width sve_linkname requires; kept as the
-// conservative answer for callers that do not distinguish the two flavours.
-const RequiredVectorLength = LinknameVectorLength
+// SupportedVectorLengths lists the widths the natives have been verified on:
+// 16 bytes (Neoverse V2/N2: Graviton4, Cobalt, Axion, Grace) and 32 bytes
+// (Neoverse V1: Graviton3; Kunpeng). These are also the only SVE widths
+// shipping in general-purpose parts.
+var SupportedVectorLengths = [...]int{16, 32}
 
-// SupportsVectorLength reports whether vl is one of the supported widths.
-func SupportsVectorLength(vl int, supported []int) bool {
-	for _, v := range supported {
+// SupportsVectorLength reports whether the natives may run at vl bytes.
+func SupportsVectorLength(vl int) bool {
+	if vl > MaxVectorLength {
+		return false
+	}
+	for _, v := range SupportedVectorLengths {
 		if vl == v {
 			return true
 		}
@@ -75,23 +78,22 @@ func SupportsVectorLength(vl int, supported []int) bool {
 
 // Eligible reports whether this CPU may run the SVE natives.
 //
-// The CPU must implement SVE, and its vector length must be the width the
-// kernels assume. Checking for SVE alone would be worse than the vendor list it
-// replaces: it would enable these natives on Graviton4 and every other 128-bit
-// implementation, where they silently corrupt output instead of failing.
+// The CPU must implement SVE, and its vector length must be one the natives
+// support (see SupportedVectorLengths). Checking for SVE alone is not enough:
+// a wider vector than the frames were sized for would overrun them.
 //
 // Ask the kernel rather than keeping a vendor list: x/sys/cpu decodes AT_HWCAP,
 // which the kernel derives from ID_AA64PFR0_EL1 at boot. That picks up
-// Graviton3, which the original Kunpeng part-id check excluded despite it
-// working. That check is kept as a fallback for when the vector length cannot
-// be established at all, so existing deployments cannot regress.
+// Graviton3 and Graviton4, which the original Kunpeng part-id check excluded
+// despite them working. That check is kept as a fallback for when the vector
+// length cannot be established at all, so existing deployments cannot regress.
 //
 // Eligibility is not selection: sonic still requires SONIC_USE_SVE_WRAPGOC or
 // SONIC_USE_SVE_LINKNAME before anything but neon is used.
 func Eligible() bool {
 	if xcpu.ARM64.HasSVE {
 		if vl := VectorLength(); vl != 0 {
-			return SupportsVectorLength(vl, WrapgocVectorLengths[:])
+			return SupportsVectorLength(vl)
 		}
 		// Vector length unknown; fall through to the legacy check.
 	}
@@ -111,8 +113,11 @@ func Describe() string {
 	} else {
 		b.WriteString("present, vector length ")
 		b.WriteString(itoa(vl))
-		b.WriteString(" bytes (natives require ")
-		b.WriteString(itoa(RequiredVectorLength))
+		b.WriteString(" bytes (natives support")
+		for _, v := range SupportedVectorLengths {
+			b.WriteString(" ")
+			b.WriteString(itoa(v))
+		}
 		b.WriteString(")")
 	}
 	if Eligible() {

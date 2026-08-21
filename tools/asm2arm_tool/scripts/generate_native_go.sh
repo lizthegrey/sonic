@@ -36,6 +36,21 @@ SRC_DIR="${PROJECT_DIR}/native"
 TMPL_DIR="${PROJECT_DIR}/internal/native"
 OUTPUT_DIR="${TOOL_DIR}/output"
 
+# The SVE vector length, in bytes, the SVE natives' stack frames are sized for.
+#
+# Go needs one PC->SP table per function, so a native's frame must be the same
+# size on every machine it may run on. SVE code allocates its scalable spill
+# area with `addvl sp, sp, #-N` (N*VL bytes: 64 on Graviton3, 32 on Graviton4).
+# asm2arm_tool --max-vl rewrites that to a fixed `sub sp, sp, #N*SVE_MAX_VL`,
+# so the frame is the 256-bit frame everywhere and any VL <= SVE_MAX_VL runs
+# with the same metadata. The tool refuses to generate if the compiler output
+# ever addresses a scalable object from sp, which is the one thing that would
+# make this unsound.
+#
+# Must match sve.MaxVectorLength in internal/native/sve; the dispatcher will
+# not select the SVE natives on a wider machine.
+SVE_MAX_VL=32
+
 # 清理函数
 function clean_files() {
   echo ">>> Cleaning generated files..."
@@ -238,9 +253,9 @@ if [ -d "${SRC_DIR}" ]; then
                 if [ ! -f "${asm_file}" ]; then
                     echo "Error: Assembly file not generated for sve_linkname."
                 else
-                    echo ">>> Execute SL mode for sve_linkname..."
+                    echo ">>> Execute SL mode for sve_linkname (frame sized for VL=${SVE_MAX_VL})..."
                     ${TOOL_PATH} --debug --mode=SL --source=${asm_file} --goproto=${SVE_LINKNAME_FILE} --output=${SVE_LINKNAME_OUTPUT} --link-ld=${SCRIPT_DIR}/link.ld \
-                    --package=sve_linkname --features=+sve,+aes --vl=32 2>${cerr_log}
+                    --package=sve_linkname --features=+sve,+aes --max-vl=${SVE_MAX_VL} 2>${cerr_log}
 
                     if [ $? -eq 0 ]; then
                         echo ">>> Tool execution succeeded for sve_linkname ${base_name}"
@@ -271,29 +286,13 @@ if [ -d "${SRC_DIR}" ]; then
                 if [ ! -f "${asm_file}" ]; then
                     echo "Error: Assembly file not generated for sve_wrapgoc."
                 else
-                    # Generate once per supported SVE vector length. --vl feeds
-                    # only CalcSPDelta, so the machine code is identical every
-                    # time; what differs is the frame accounting handed to Go,
-                    # because scalable spill slots are VL bytes wide. Keeping one
-                    # copy of the text and one small table per VL lets the
-                    # vector length be chosen at load time instead of baked in.
-                    echo ">>> Execute JIT mode for sve_wrapgoc (vl=32, vl=16)..."
-                    for vl in 32 16; do
-                        vl_dir="${SVE_WRAPGOC_OUTPUT}/vl${vl}"
-                        mkdir -p "${vl_dir}"
-                        ${TOOL_PATH} --debug --mode=JIT --source=${asm_file} --output=${vl_dir} --link-ld=${SCRIPT_DIR}/link.ld --tmpl=${SVE_WRAPGOC_TMPL} \
-                        --package=sve_wrapgoc --features=+sve,+aes --vl=${vl} 2>>${cerr_log}
-                    done
-
-                    # text and stub are vector-length agnostic: take either copy.
-                    cp "${SVE_WRAPGOC_OUTPUT}/vl32/${base_name}_text_arm64.go" "${SVE_WRAPGOC_OUTPUT}/" 2>/dev/null
-                    cp "${SVE_WRAPGOC_OUTPUT}/vl32/${base_name}.go" "${SVE_WRAPGOC_OUTPUT}/" 2>/dev/null
-                    # merge_vl_subr.py refuses if entry/size differ, i.e. if the
-                    # text ever stops being vector-length agnostic.
-                    python3 "${SCRIPT_DIR}/merge_vl_subr.py" \
-                        32 "${SVE_WRAPGOC_OUTPUT}/vl32/${base_name}_subr.go" \
-                        16 "${SVE_WRAPGOC_OUTPUT}/vl16/${base_name}_subr.go" \
-                        "${SVE_WRAPGOC_OUTPUT}/${base_name}_subr.go"
+                    # --max-vl sizes every scalable stack allocation for the
+                    # largest supported vector length, so the frame -- and the
+                    # one pcsp table Go gets -- is identical on every machine
+                    # with VL <= SVE_MAX_VL. See SVE_MAX_VL above.
+                    echo ">>> Execute JIT mode for sve_wrapgoc (frame sized for VL=${SVE_MAX_VL})..."
+                    ${TOOL_PATH} --debug --mode=JIT --source=${asm_file} --output=${SVE_WRAPGOC_OUTPUT} --link-ld=${SCRIPT_DIR}/link.ld --tmpl=${SVE_WRAPGOC_TMPL} \
+                    --package=sve_wrapgoc --features=+sve,+aes --max-vl=${SVE_MAX_VL} 2>${cerr_log}
 
                     if [ $? -eq 0 ]; then
                         echo ">>> Tool execution succeeded for sve_wrapgoc ${base_name}"

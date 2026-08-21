@@ -236,8 +236,13 @@ void SLStreamer::MakeBranchInst(const std::vector<std::string> &Token,
   outs() << "Unsupported Branch Instruction\n";
 }
 
-void SLStreamer::emitInstruction(const MCInst &Inst,
+void SLStreamer::emitInstruction(const MCInst &OrigInst,
                                  const MCSubtargetInfo &STI) {
+  // A scalable stack adjustment becomes its fixed MaxVectorLength form here,
+  // exactly as in the ELF JIT mode copies, so the Go assembler sees the same
+  // frame the SP-delta analysis computed.
+  MCInst Inst = OrigInst;
+  const bool Rewrote = RewriteScalableSPAdjust(Inst, Bundle);
   if (IsTopEmit == 0) {
     const auto &Desc = Bundle.getInstrInfo().get(Inst.getOpcode());
     std::string InstStr;
@@ -249,6 +254,15 @@ void SLStreamer::emitInstruction(const MCInst &Inst,
     MCELFStreamer::getAssembler().getEmitter().encodeInstruction(
         Inst, Buffer, Fixup, Bundle.getSubtargetInfo());
     auto Token = tool::TokenizeInstruction(InstStr);
+    if (Rewrote) {
+      // Record what the compiler wrote; the comment is the only place the
+      // original survives, and the artifact tests read these comments.
+      std::string OrigStr;
+      raw_string_ostream OOS(OrigStr);
+      Bundle.getInstPrinter().printInst(&OrigInst, 0, "", STI, OOS);
+      InstStr += "  (was" + OrigStr + "; frame sized for VL=" +
+                 std::to_string(MaxVectorLength) + ")";
+    }
     // Fixup非空时，说明指令中存在需要在链接时处理的label参数
     // label参数在MCOperand中的判断是isExpr()，暂不清楚这种指令能否直接使用WORD表示
     if (Desc.isBranch() && !Desc.isIndirectBranch()) {

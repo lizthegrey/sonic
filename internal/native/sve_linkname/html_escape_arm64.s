@@ -26,7 +26,7 @@ html_escape:
     WORD $0xa900fbfd  // 	stp	fp, lr, [sp, #8]
     WORD $0x910023e9  // 	add	x9, sp, #8
     WORD $0xa901cff4  // 	stp	x20, x19, [sp, #24]
-    WORD $0x043f57ff  // 	addvl	sp, sp, #-1
+    WORD $0xd10083ff  // 	sub	sp, sp, #32  (was	addvl	sp, sp, #-1; frame sized for VL=32)
     WORD $0xd10043ff  // 	sub	sp, sp, #16
     WORD $0xf100043f  // 	cmp	x1, #1
     WORD $0xaa0203e8  // 	mov	x8, x2
@@ -420,7 +420,7 @@ LBB0_81:
     WORD $0xcb0001e0  // 	sub	x0, x15, x0
     WORD $0xf9000068  // 	str	x8, [x3]
     WORD $0x910043ff  // 	add	sp, sp, #16
-    WORD $0x043f503f  // 	addvl	sp, sp, #1
+    WORD $0x910083ff  // 	add	sp, sp, #32  (was	addvl	sp, sp, #1; frame sized for VL=32)
     WORD $0xa941cff4  // 	ldp	x20, x19, [sp, #24]
     WORD $0xa940fbfd  // 	ldp	fp, lr, [sp, #8]
     WORD $0x9100c3ff  // 	add	sp, sp, #48
@@ -429,7 +429,7 @@ LBB0_82:
     WORD $0xaa2f03e8  // 	mvn	x8, x15
     WORD $0x8b000100  // 	add	x0, x8, x0
     WORD $0x910043ff  // 	add	sp, sp, #16
-    WORD $0x043f503f  // 	addvl	sp, sp, #1
+    WORD $0x910083ff  // 	add	sp, sp, #32  (was	addvl	sp, sp, #1; frame sized for VL=32)
     WORD $0xa941cff4  // 	ldp	x20, x19, [sp, #24]
     WORD $0xa940fbfd  // 	ldp	fp, lr, [sp, #8]
     WORD $0x9100c3ff  // 	add	sp, sp, #48
@@ -442,7 +442,7 @@ LBB0_83:
     WORD $0xf9000068  // 	str	x8, [x3]
     WORD $0x8b060140  // 	add	x0, x10, x6
     WORD $0x910043ff  // 	add	sp, sp, #16
-    WORD $0x043f503f  // 	addvl	sp, sp, #1
+    WORD $0x910083ff  // 	add	sp, sp, #32  (was	addvl	sp, sp, #1; frame sized for VL=32)
     WORD $0xa941cff4  // 	ldp	x20, x19, [sp, #24]
     WORD $0xa940fbfd  // 	ldp	fp, lr, [sp, #8]
     WORD $0x9100c3ff  // 	add	sp, sp, #48
@@ -453,7 +453,7 @@ LBB0_84:
     WORD $0xf9000068  // 	str	x8, [x3]
     WORD $0x8b000140  // 	add	x0, x10, x0
     WORD $0x910043ff  // 	add	sp, sp, #16
-    WORD $0x043f503f  // 	addvl	sp, sp, #1
+    WORD $0x910083ff  // 	add	sp, sp, #32  (was	addvl	sp, sp, #1; frame sized for VL=32)
     WORD $0xa941cff4  // 	ldp	x20, x19, [sp, #24]
     WORD $0xa940fbfd  // 	ldp	fp, lr, [sp, #8]
     WORD $0x9100c3ff  // 	add	sp, sp, #48

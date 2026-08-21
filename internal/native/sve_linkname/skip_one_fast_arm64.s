@@ -29,7 +29,7 @@ skip_one_fast:
     WORD $0xa907dff8  // 	stp	x24, x23, [sp, #120]
     WORD $0xa908d7f6  // 	stp	x22, x21, [sp, #136]
     WORD $0xa909cff4  // 	stp	x20, x19, [sp, #152]
-    WORD $0x043f57ff  // 	addvl	sp, sp, #-1
+    WORD $0xd10083ff  // 	sub	sp, sp, #32  (was	addvl	sp, sp, #-1; frame sized for VL=32)
     WORD $0xd10043ff  // 	sub	sp, sp, #16
     WORD $0xa93ffbfd  // 	stp	fp, lr, [sp, #-8]
     WORD $0xd10023fd  // 	sub	fp, sp, #8
@@ -1175,7 +1175,7 @@ LBB0_202:
     WORD $0x92800000  // 	mov	x0, #-1
 LBB0_203:
     WORD $0x910043ff  // 	add	sp, sp, #16
-    WORD $0x043f503f  // 	addvl	sp, sp, #1
+    WORD $0x910083ff  // 	add	sp, sp, #32  (was	addvl	sp, sp, #1; frame sized for VL=32)
     WORD $0xa949cff4  // 	ldp	x20, x19, [sp, #152]
     WORD $0xa948d7f6  // 	ldp	x22, x21, [sp, #136]
     WORD $0xa947dff8  // 	ldp	x24, x23, [sp, #120]
