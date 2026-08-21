@@ -179,31 +179,33 @@ static std::unordered_map<std::string, std::string> BranchMap = {
     {"bc.nv", "B"},
 };
 
-/// cbz --> cmp + beq | cbnz --> cmp + bne
-/// tbz --> tst + beq | tbnz --> tst + bne
+/// cbz/cbnz --> CBZ/CBNZ (CBZW/CBNZW for a W register)
+/// tbz/tbnz --> TBZ/TBNZ
+///
+/// These map one-to-one onto the Go assembler's own compare-and-branch forms.
+/// They must not be lowered to CMP/TST + B.cond. The originals leave NZCV
+/// untouched, and the compiler schedules them freely between a flag-setting
+/// instruction and the B.cond or CSEL that consumes those flags; a synthesized
+/// compare in that window clobbers flags that are still live. skip_one hit
+/// exactly this: SUBS (len - p) ... TBNZ flags ... B.EQ -> ERR_EOF, where the
+/// TST turned the B.EQ into "flags bit clear", so every string scan returned
+/// EOF. The W forms also keep the 32-bit operand width, which a 64-bit CMP
+/// against ZR did not.
 bool SLStreamer::MakeCmpareBranch(const std::vector<std::string> &Token,
                                   const std::string &InstStr) {
   auto &Op = Token[0];
   if (Op != "cbz" && Op != "cbnz" && Op != "tbz" && Op != "tbnz") {
     return false;
   }
-  if (Op == "cbz") {
-    this->Out << "    CMP ZR, " << ToPlan9Reg(Token[1]) << "\n";
-    this->Out << "    BEQ ";
+  const bool IsW = !Token[1].empty() && Token[1][0] == 'w';
+  if (Op == "cbz" || Op == "cbnz") {
+    this->Out << "    " << (Op == "cbz" ? "CBZ" : "CBNZ") << (IsW ? "W" : "")
+              << " " << ToPlan9Reg(Token[1]) << ", ";
     tool::OutLabel(this->Out, Token[2]) << "  // " << InstStr << "\n";
-  } else if (Op == "cbnz") {
-    this->Out << "    CMP ZR, " << ToPlan9Reg(Token[1]) << "\n";
-    this->Out << "    BNE ";
-    tool::OutLabel(this->Out, Token[2]) << "  // " << InstStr << "\n";
-  } else if (Op == "tbz") {
-    this->Out << "    TST $(1<<" << Token[2].substr(1) << "), "
-              << ToPlan9Reg(Token[1]) << "\n";
-    this->Out << "    BEQ ";
-    tool::OutLabel(this->Out, Token[3]) << "  // " << InstStr << "\n";
   } else {
-    this->Out << "    TST $(1<<" << Token[2].substr(1) << "), "
-              << ToPlan9Reg(Token[1]) << "\n";
-    this->Out << "    BNE ";
+    // Token[2] is the bit number, printed as "#N".
+    this->Out << "    " << (Op == "tbz" ? "TBZ" : "TBNZ") << " $"
+              << Token[2].substr(1) << ", " << ToPlan9Reg(Token[1]) << ", ";
     tool::OutLabel(this->Out, Token[3]) << "  // " << InstStr << "\n";
   }
   return true;
@@ -227,7 +229,8 @@ void SLStreamer::MakeBranchInst(const std::vector<std::string> &Token,
     return;
   }
   if (this->MakeCmpareBranch(Token, InstStr)) {
-    this->ProgramCounter += 8;
+    // one native compare-and-branch instruction, same size as the original
+    this->ProgramCounter += 4;
     return;
   }
   outs() << "Unsupported Branch Instruction\n";
