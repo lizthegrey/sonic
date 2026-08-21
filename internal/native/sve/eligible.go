@@ -33,26 +33,45 @@ import (
 	xcpu "golang.org/x/sys/cpu"
 )
 
-// RequiredVectorLength is the SVE vector length, in bytes, that the natives
-// require: 256-bit.
+// The SVE vector lengths, in bytes, that each flavour of native supports.
 //
-// This is not merely what asm2arm_tool was invoked with (--vl=32). The SVE
-// kernels assume it. native/scanning.h reinterprets predicate registers as
-// 32-bit lane masks -- get_maskx32 does
+// Two independent things have to line up for a vector length to work.
 //
-//	svbool_t cmp_pg = svcmpeq_n_u8(svptrue_b8(), v0, c);
-//	uint32_t *bit7 = (uint32_t *)&cmp_pg;
+// The kernels must compute the right answer at that width. They originally did
+// not: native/scanning.h read predicate registers as fixed 32-bit lane masks,
+// so it was correct only at 32 bytes. That is now expressed vector-length
+// agnostically in native/sve_compat.h, so the results are right at any width.
 //
-// which yields 32 lane bits only when a vector is 32 bytes wide, while
-// skip_string_fast advances s += 32 regardless. The SSE branch of that same
-// function issues two 16-byte loads and combines them explicitly. So the port is
-// written for 256-bit vectors rather than vector-length agnostically.
+// And the frame metadata handed to Go must match, because scalable spill slots
+// are VL bytes wide. Get that wrong and results are still correct but unwinding
+// is not: Go computes the wrong caller SP, so a fault inside a native cannot be
+// recovered and precise GC stack scanning walks the wrong frame.
 //
-// Measured: on Graviton4 (Neoverse V2, 128-bit) skip_one_fast returns 31 where
-// 42 is expected and -1 where 45 is expected, which surfaces downstream as
-// "should always be valid json here". On Graviton3 (Neoverse V1, 256-bit) the
-// full suite passes.
-const RequiredVectorLength = 32
+// sve_wrapgoc loads through internal/loader, so its frame metadata is ordinary
+// Go data; it carries one pcsp table per width and picks at load time.
+//
+// sve_linkname is statically linked and its frame sizes live in the TEXT
+// directives of generated Go assembly (NOSPLIT, $80 vs $64), fixed when the
+// package is built. Supporting a second width there needs a second set of
+// symbols, so it stays at the width it was built for.
+var WrapgocVectorLengths = [...]int{16, 32}
+
+// LinknameVectorLength is the single width sve_linkname is built for.
+const LinknameVectorLength = 32
+
+// RequiredVectorLength is the width sve_linkname requires; kept as the
+// conservative answer for callers that do not distinguish the two flavours.
+const RequiredVectorLength = LinknameVectorLength
+
+// SupportsVectorLength reports whether vl is one of the supported widths.
+func SupportsVectorLength(vl int, supported []int) bool {
+	for _, v := range supported {
+		if vl == v {
+			return true
+		}
+	}
+	return false
+}
 
 // Eligible reports whether this CPU may run the SVE natives.
 //
@@ -72,7 +91,7 @@ const RequiredVectorLength = 32
 func Eligible() bool {
 	if xcpu.ARM64.HasSVE {
 		if vl := VectorLength(); vl != 0 {
-			return vl == RequiredVectorLength
+			return SupportsVectorLength(vl, WrapgocVectorLengths[:])
 		}
 		// Vector length unknown; fall through to the legacy check.
 	}

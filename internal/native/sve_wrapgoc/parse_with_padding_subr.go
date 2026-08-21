@@ -14,28 +14,53 @@ const (
 )
 
 const (
-	_stack__parse_with_padding = 208
+	_stack__parse_with_padding_vl32 = 256
+	_stack__parse_with_padding_vl16 = 224
 )
 
 const (
-	_size__parse_with_padding = 57636
+	_size__parse_with_padding = 59204
 )
 
 var (
-	_pcsp__parse_with_padding = [][2]uint32{
+	_pcsp__parse_with_padding_vl32 = [][2]uint32{
 		{0x1, 0},
 		{0x0, 0},
-		{0x20, 160},
-		{0x24, 192},
-		{0x1544, 208},
-		{0x1548, 192},
-		{0x1564, 160},
-		{0x1568, 0},
-		{0xe124, 208},
+		{0x20, 176},
+		{0x24, 240},
+		{0x15b4, 256},
+		{0x15b8, 240},
+		{0x15d4, 176},
+		{0x15d8, 0},
+		{0xe744, 256},
+	}
+	_pcsp__parse_with_padding_vl16 = [][2]uint32{
+		{0x1, 0},
+		{0x0, 0},
+		{0x20, 176},
+		{0x24, 208},
+		{0x15b4, 224},
+		{0x15b8, 208},
+		{0x15d4, 176},
+		{0x15d8, 0},
+		{0xe744, 224},
 	}
 )
 
-var _cfunc_parse_with_padding = []loader.CFunc{
-	{"_parse_with_padding_entry", 0, _entry__parse_with_padding, 0, nil},
-	{"_parse_with_padding", _entry__parse_with_padding, _size__parse_with_padding, _stack__parse_with_padding, _pcsp__parse_with_padding},
+// _cfunc_parse_with_padding returns the frame metadata for an SVE vector length of vl
+// bytes, or nil if the natives were not generated for that width.
+func _cfunc_parse_with_padding(vl int) []loader.CFunc {
+	switch vl {
+	case 32:
+		return []loader.CFunc{
+			{"_parse_with_padding_entry", 0, _entry__parse_with_padding, 0, nil},
+			{"_parse_with_padding", _entry__parse_with_padding, _size__parse_with_padding, _stack__parse_with_padding_vl32, _pcsp__parse_with_padding_vl32},
+		}
+	case 16:
+		return []loader.CFunc{
+			{"_parse_with_padding_entry", 0, _entry__parse_with_padding, 0, nil},
+			{"_parse_with_padding", _entry__parse_with_padding, _size__parse_with_padding, _stack__parse_with_padding_vl16, _pcsp__parse_with_padding_vl16},
+		}
+	}
+	return nil
 }

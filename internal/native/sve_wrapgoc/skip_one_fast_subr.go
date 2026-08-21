@@ -14,43 +14,51 @@ const (
 )
 
 const (
-	_stack__skip_one_fast = 176
+	_stack__skip_one_fast_vl32 = 224
+	_stack__skip_one_fast_vl16 = 208
 )
 
 const (
-	_size__skip_one_fast = 2916
+	_size__skip_one_fast = 4324
 )
 
 var (
-	_pcsp__skip_one_fast = [][2]uint32{
+	_pcsp__skip_one_fast_vl32 = [][2]uint32{
 		{0x1, 0},
-		{0x10, 128},
-		{0x14, 160},
-		{0x118, 176},
-		{0x11c, 160},
-		{0x128, 128},
-		{0x12c, 0},
-		{0x9a0, 176},
-		{0x9a4, 160},
-		{0x9b0, 128},
-		{0x9b4, 0},
-		{0x9c0, 176},
-		{0x9c4, 160},
-		{0x9d0, 128},
-		{0x9d4, 0},
-		{0x9f4, 176},
-		{0x9f8, 160},
-		{0xa04, 128},
-		{0xa08, 0},
-		{0xaa4, 176},
-		{0xaa8, 160},
-		{0xab4, 128},
-		{0xab8, 0},
-		{0xb64, 176},
+		{0x1c, 176},
+		{0x20, 208},
+		{0x101c, 224},
+		{0x1020, 208},
+		{0x1038, 176},
+		{0x103c, 0},
+		{0x10e4, 224},
+	}
+	_pcsp__skip_one_fast_vl16 = [][2]uint32{
+		{0x1, 0},
+		{0x1c, 176},
+		{0x20, 192},
+		{0x101c, 208},
+		{0x1020, 192},
+		{0x1038, 176},
+		{0x103c, 0},
+		{0x10e4, 208},
 	}
 )
 
-var _cfunc_skip_one_fast = []loader.CFunc{
-	{"_skip_one_fast_entry", 0, _entry__skip_one_fast, 0, nil},
-	{"_skip_one_fast", _entry__skip_one_fast, _size__skip_one_fast, _stack__skip_one_fast, _pcsp__skip_one_fast},
+// _cfunc_skip_one_fast returns the frame metadata for an SVE vector length of vl
+// bytes, or nil if the natives were not generated for that width.
+func _cfunc_skip_one_fast(vl int) []loader.CFunc {
+	switch vl {
+	case 32:
+		return []loader.CFunc{
+			{"_skip_one_fast_entry", 0, _entry__skip_one_fast, 0, nil},
+			{"_skip_one_fast", _entry__skip_one_fast, _size__skip_one_fast, _stack__skip_one_fast_vl32, _pcsp__skip_one_fast_vl32},
+		}
+	case 16:
+		return []loader.CFunc{
+			{"_skip_one_fast_entry", 0, _entry__skip_one_fast, 0, nil},
+			{"_skip_one_fast", _entry__skip_one_fast, _size__skip_one_fast, _stack__skip_one_fast_vl16, _pcsp__skip_one_fast_vl16},
+		}
+	}
+	return nil
 }

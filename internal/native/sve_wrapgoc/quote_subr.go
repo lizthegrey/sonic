@@ -14,7 +14,8 @@ const (
 )
 
 const (
-	_stack__quote = 96
+	_stack__quote_vl32 = 96
+	_stack__quote_vl16 = 80
 )
 
 const (
@@ -22,7 +23,7 @@ const (
 )
 
 var (
-	_pcsp__quote = [][2]uint32{
+	_pcsp__quote_vl32 = [][2]uint32{
 		{0x1, 0},
 		{0x10, 48},
 		{0x14, 80},
@@ -32,9 +33,32 @@ var (
 		{0x84c, 0},
 		{0x2990, 96},
 	}
+	_pcsp__quote_vl16 = [][2]uint32{
+		{0x1, 0},
+		{0x10, 48},
+		{0x14, 64},
+		{0x838, 80},
+		{0x83c, 64},
+		{0x848, 48},
+		{0x84c, 0},
+		{0x2990, 80},
+	}
 )
 
-var _cfunc_quote = []loader.CFunc{
-	{"_quote_entry", 0, _entry__quote, 0, nil},
-	{"_quote", _entry__quote, _size__quote, _stack__quote, _pcsp__quote},
+// _cfunc_quote returns the frame metadata for an SVE vector length of vl
+// bytes, or nil if the natives were not generated for that width.
+func _cfunc_quote(vl int) []loader.CFunc {
+	switch vl {
+	case 32:
+		return []loader.CFunc{
+			{"_quote_entry", 0, _entry__quote, 0, nil},
+			{"_quote", _entry__quote, _size__quote, _stack__quote_vl32, _pcsp__quote_vl32},
+		}
+	case 16:
+		return []loader.CFunc{
+			{"_quote_entry", 0, _entry__quote, 0, nil},
+			{"_quote", _entry__quote, _size__quote, _stack__quote_vl16, _pcsp__quote_vl16},
+		}
+	}
+	return nil
 }
