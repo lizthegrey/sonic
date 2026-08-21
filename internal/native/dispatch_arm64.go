@@ -28,6 +28,7 @@ import (
 	"github.com/bytedance/sonic/internal/native/types"
 	"github.com/bytedance/sonic/internal/rt"
 	"github.com/shirou/gopsutil/cpu"
+	xcpu "golang.org/x/sys/cpu"
 )
 
 var (
@@ -408,9 +409,28 @@ func useSveWrapgoc() {
 	S_parse_with_padding = sve_wrapgoc.S_parse_with_padding
 }
 
+// CpuDetect reports whether this CPU may use the SVE natives.
+//
+// The sve_linkname and sve_wrapgoc natives are built with
+// -march=armv8-a+sve+aes, so the only thing that actually matters is whether
+// the CPU implements SVE. Prefer asking the kernel: x/sys/cpu decodes AT_HWCAP,
+// which the kernel derives from ID_AA64PFR0_EL1 at boot. That covers every
+// SVE-capable part (Graviton3/4, Cobalt, Axion, ...) instead of a hand-kept
+// vendor list, and it is correctly false on platforms with no HWCAP at all,
+// such as darwin.
+//
+// The original Kunpeng part-id check is kept below as a fallback so existing
+// deployments cannot regress if HWCAP is somehow unavailable to us.
+//
+// Note this only makes a CPU *eligible*: init still requires SONIC_USE_SVE_WRAPGOC
+// or SONIC_USE_SVE_LINKNAME to be set before anything but neon is selected.
 func CpuDetect() bool {
+	if xcpu.ARM64.HasSVE {
+		return true
+	}
+
 	cpuinfo, err := cpu.Info()
-	if err != nil {
+	if err != nil || len(cpuinfo) == 0 {
 		return false
 	}
 

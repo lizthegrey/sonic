@@ -14,24 +14,24 @@ const (
 )
 
 const (
-	_stack__parse_with_padding = 192
+	_stack__parse_with_padding = 208
 )
 
 const (
-	_size__parse_with_padding = 57428
+	_size__parse_with_padding = 57636
 )
 
 var (
 	_pcsp__parse_with_padding = [][2]uint32{
 		{0x1, 0},
 		{0x0, 0},
-		{0x20, 144},
-		{0x24, 176},
-		{0x1544, 192},
-		{0x1548, 176},
-		{0x1564, 144},
+		{0x20, 160},
+		{0x24, 192},
+		{0x1544, 208},
+		{0x1548, 192},
+		{0x1564, 160},
 		{0x1568, 0},
-		{0xe054, 192},
+		{0xe124, 208},
 	}
 )
 
