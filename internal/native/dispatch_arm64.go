@@ -17,19 +17,15 @@
 package native
 
 import (
-	"bufio"
 	"os"
-	"strings"
 	"unsafe"
 
 	neon "github.com/bytedance/sonic/internal/native/neon"
+	"github.com/bytedance/sonic/internal/native/sve"
 	sve_linkname "github.com/bytedance/sonic/internal/native/sve_linkname"
 	"github.com/bytedance/sonic/internal/native/sve_wrapgoc"
-	"github.com/bytedance/sonic/internal/native/svevl"
 	"github.com/bytedance/sonic/internal/native/types"
 	"github.com/bytedance/sonic/internal/rt"
-	"github.com/shirou/gopsutil/cpu"
-	xcpu "golang.org/x/sys/cpu"
 )
 
 var (
@@ -410,80 +406,16 @@ func useSveWrapgoc() {
 	S_parse_with_padding = sve_wrapgoc.S_parse_with_padding
 }
 
-// nativeSVEVectorLength is the SVE vector length, in bytes, that the sve
-// natives require: 256-bit.
-//
-// This is not merely what asm2arm_tool was invoked with (--vl=32). The SVE
-// kernels themselves assume it. native/scanning.h reinterprets predicate
-// registers as 32-bit lane masks -- get_maskx32 does
-//
-//	svbool_t cmp_pg = svcmpeq_n_u8(svptrue_b8(), v0, c);
-//	uint32_t *bit7 = (uint32_t *)&cmp_pg;
-//
-// which only yields 32 lane bits when a vector is 32 bytes wide, while
-// skip_string_fast advances s += 32 regardless. Compare the SSE branch of the
-// same function, which explicitly issues two 16-byte loads and combines them.
-// So the port is written for 256-bit vectors rather than vector-length
-// agnostically, and no amount of frame metadata makes it correct elsewhere.
-//
-// Measured: on Graviton4 (Neoverse V2, 128-bit) skip_one_fast returns wrong
-// offsets -- 31 where 42 is expected, -1 where 45 is expected -- which surfaces
-// downstream as "should always be valid json here". On Graviton3 (Neoverse V1,
-// 256-bit) the full suite passes.
-const nativeSVEVectorLength = 32
-
 // CpuDetect reports whether this CPU may use the SVE natives.
 //
-// Two things have to hold. The CPU must implement SVE, since the natives are
-// built with -march=armv8-a+sve+aes; ask the kernel rather than keeping a vendor
-// list, via x/sys/cpu's decoding of AT_HWCAP, which the kernel derives from
-// ID_AA64PFR0_EL1 at boot. And its vector length must be the 256 bits the
-// kernels assume -- see nativeSVEVectorLength.
-//
-// Checking for SVE alone would be worse than the old vendor list: it would
-// enable these natives on Graviton4 and every other 128-bit implementation,
-// where they silently corrupt output instead of failing.
-//
-// The original Kunpeng part-id check is kept as a fallback for when the vector
-// length cannot be established at all, so existing deployments cannot regress.
+// The decision lives in internal/native/sve so that the sve_linkname and
+// sve_wrapgoc test suites gate on exactly the same rule; they cannot import
+// this package, and previously each kept its own stale copy.
 //
 // Note this only makes a CPU *eligible*: init still requires SONIC_USE_SVE_WRAPGOC
 // or SONIC_USE_SVE_LINKNAME to be set before anything but neon is selected.
 func CpuDetect() bool {
-	if xcpu.ARM64.HasSVE {
-		if vl := svevl.Length(); vl != 0 {
-			return vl == nativeSVEVectorLength
-		}
-		// Vector length unknown; fall through to the legacy check.
-	}
-
-	cpuinfo, err := cpu.Info()
-	if err != nil || len(cpuinfo) == 0 {
-		return false
-	}
-
-	if cpuinfo[0].Model == "0xd02" || cpuinfo[0].Model == "0xd06" {
-		return true
-	}
-
-	file, err := os.Open("/proc/cpuinfo")
-	if err != nil {
-		return false
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := scanner.Text()
-		if strings.HasPrefix(line, "CPU part") {
-			parts := strings.SplitN(line, ":", 2)
-			model := strings.TrimSpace(parts[1])
-			if model == "0xd02" || model == "0xd06" {
-				return true
-			}
-		}
-	}
-	return false
+	return sve.Eligible()
 }
 
 func init() {

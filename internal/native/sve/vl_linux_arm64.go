@@ -1,5 +1,5 @@
-//go:build !(linux && arm64)
-// +build !linux !arm64
+//go:build linux && arm64
+// +build linux,arm64
 
 /*
  * Copyright 2026 ByteDance Inc.
@@ -17,15 +17,22 @@
  * limitations under the License.
  */
 
-package svevl
+package sve
 
-// Length reports the SVE vector length in bytes, or 0 when it cannot be
-// established.
+import (
+	"golang.org/x/sys/unix"
+)
+
+// VectorLength returns this thread's SVE vector length in bytes, or 0 if it cannot be
+// determined.
 //
-// prctl(PR_SVE_GET_VL) is Linux-specific. Everywhere else there is no way to
-// ask, so report unknown and let the caller refuse to enable the SVE natives.
-// darwin in particular has no HWCAP and no prctl, so this keeps macOS on neon
-// even if x/sys/cpu ever grows SVE detection there.
-func Length() int {
-	return 0
+// prctl(PR_SVE_GET_VL) is the per-thread value the kernel will actually give
+// the natives, which is what matters. /proc/sys/abi/sve_default_vector_length is
+// only the default new processes inherit and can be overridden.
+func VectorLength() int {
+	vl, err := unix.PrctlRetInt(unix.PR_SVE_GET_VL, 0, 0, 0, 0)
+	if err != nil {
+		return 0
+	}
+	return vl & unix.PR_SVE_VL_LEN_MASK
 }

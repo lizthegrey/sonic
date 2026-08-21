@@ -36,6 +36,25 @@ jobs:
             ${{ github.workspace }}/go.sum
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
 
+      - name: Report native dispatch
+        # Which native path a run exercised is otherwise invisible: a machine
+        # that falls back to neon prints exactly the same "ok" as one that ran
+        # the SVE natives. Log it so a silent fallback is visible in CI output.
+        run: |
+          echo "uname -m: $(uname -m)"
+          grep -m1 "^Features" /proc/cpuinfo 2>/dev/null || true
+          cat /proc/sys/abi/sve_default_vector_length 2>/dev/null || echo "no SVE vector length"
+
+      - name: SVE Natives
+        # Runs the SVE suites when the hardware qualifies, and reports plainly
+        # when it does not. Not gated to failure: no GitHub-hosted arm64 runner
+        # is 256-bit SVE (Cobalt 100 is Neoverse N2 at 128-bit), so this skips
+        # everywhere today and exists so that stops being invisible. Anyone with
+        # 256-bit hardware -- Graviton3, Kunpeng -- can set SONIC_REQUIRE_SVE=1
+        # to turn a skip into a failure.
+        run: |
+          GOMAXPROCS=4 go test -v ./internal/native/sve_wrapgoc/ ./internal/native/sve_linkname/
+
       - name: Unit Test
         run: |
           GOMAXPROCS=4 go test -race -covermode=atomic -coverprofile=coverage.txt $(go list ./... | grep -v -E 'loader|jit|avx|x86|sse')
