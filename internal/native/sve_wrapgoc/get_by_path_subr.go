@@ -14,27 +14,51 @@ const (
 )
 
 const (
-	_stack__get_by_path = 224
+	_stack__get_by_path_vl32 = 336
+	_stack__get_by_path_vl16 = 304
 )
 
 const (
-	_size__get_by_path = 18292
+	_size__get_by_path = 26980
 )
 
 var (
-	_pcsp__get_by_path = [][2]uint32{
+	_pcsp__get_by_path_vl32 = [][2]uint32{
 		{0x1, 0},
-		{0x20, 176},
-		{0x24, 208},
-		{0x3cac, 224},
-		{0x3cb0, 208},
-		{0x3ccc, 176},
-		{0x3cd0, 0},
-		{0x4774, 224},
+		{0x20, 256},
+		{0x24, 320},
+		{0x5920, 336},
+		{0x5924, 320},
+		{0x5940, 256},
+		{0x5944, 0},
+		{0x6964, 336},
+	}
+	_pcsp__get_by_path_vl16 = [][2]uint32{
+		{0x1, 0},
+		{0x20, 256},
+		{0x24, 288},
+		{0x5920, 304},
+		{0x5924, 288},
+		{0x5940, 256},
+		{0x5944, 0},
+		{0x6964, 304},
 	}
 )
 
-var _cfunc_get_by_path = []loader.CFunc{
-	{"_get_by_path_entry", 0, _entry__get_by_path, 0, nil},
-	{"_get_by_path", _entry__get_by_path, _size__get_by_path, _stack__get_by_path, _pcsp__get_by_path},
+// _cfunc_get_by_path returns the frame metadata for an SVE vector length of vl
+// bytes, or nil if the natives were not generated for that width.
+func _cfunc_get_by_path(vl int) []loader.CFunc {
+	switch vl {
+	case 32:
+		return []loader.CFunc{
+			{"_get_by_path_entry", 0, _entry__get_by_path, 0, nil},
+			{"_get_by_path", _entry__get_by_path, _size__get_by_path, _stack__get_by_path_vl32, _pcsp__get_by_path_vl32},
+		}
+	case 16:
+		return []loader.CFunc{
+			{"_get_by_path_entry", 0, _entry__get_by_path, 0, nil},
+			{"_get_by_path", _entry__get_by_path, _size__get_by_path, _stack__get_by_path_vl16, _pcsp__get_by_path_vl16},
+		}
+	}
+	return nil
 }

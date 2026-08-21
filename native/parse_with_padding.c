@@ -1,5 +1,6 @@
 #include "native.h"
 #include "simd.h"
+#include "sve_compat.h"
 #include <stdint.h>
 #include "parsing.h"
 #include "scanning.h"
@@ -505,6 +506,20 @@ typedef struct {
 } string_block;
 
 static always_inline string_block string_block_new(uint8_t* s, uint64_t opts) {
+#if defined(__SVE__)
+    /*
+     * v256u is svuint8_t under SVE, so it only holds 32 bytes when the vector
+     * happens to be 256 bits wide. Cover the 32-byte block explicitly instead,
+     * in predicated chunks, so this is correct at any vector length.
+     */
+    uint64_t quote, bs, ctrl;
+    sve_string_masks((const char *)s, 32, &quote, &bs, &ctrl);
+    return (string_block){
+        .bs = (uint32_t)bs,
+        .quote = (uint32_t)quote,
+        .esc = (unlikely((opts & F_VALIDATE_STRING) != 0)) ? (uint32_t)ctrl : 0
+    };
+#else
     v256u v = v256_loadu((uint8_t*)s);
     if (unlikely((opts & F_VALIDATE_STRING) != 0)) {
         return (string_block){
@@ -519,6 +534,7 @@ static always_inline string_block string_block_new(uint8_t* s, uint64_t opts) {
             .esc = 0
         };
     }
+#endif
 }
 
 static always_inline bool has_quote_first(string_block* block) {

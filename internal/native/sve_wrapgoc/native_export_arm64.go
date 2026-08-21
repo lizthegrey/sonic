@@ -18,16 +18,34 @@
 
 package sve_wrapgoc
 
-import "github.com/bytedance/sonic/loader"
+import (
+	"strconv"
 
+	"github.com/bytedance/sonic/internal/native/sve"
+	"github.com/bytedance/sonic/loader"
+)
+
+// Use loads the SVE natives, selecting the frame metadata for this machine's
+// SVE vector length.
+//
+// The machine code is vector-length agnostic; only the frame accounting
+// differs, so one copy of the text serves every supported width. A width the
+// natives were not generated for is a programming error rather than something
+// to paper over: dispatch is expected to have refused already, and loading
+// mismatched metadata corrupts stack scanning silently. Fail loudly instead.
 func Use() {
-	loader.WrapGoC(_text_get_by_path, _cfunc_get_by_path, []loader.GoC{{"_get_by_path", &S_get_by_path, &F_get_by_path}}, "sve_wrapgoc", "sve_wrapgoc/get_by_path.c")
-	loader.WrapGoC(_text_i64toa, _cfunc_i64toa, []loader.GoC{{"_i64toa", &S_i64toa, &F_i64toa}}, "sve_wrapgoc", "sve_wrapgoc/i64toa.c")
-	loader.WrapGoC(_text_parse_with_padding, _cfunc_parse_with_padding, []loader.GoC{{"_parse_with_padding", &S_parse_with_padding, &F_parse_with_padding}}, "sve_wrapgoc", "sve_wrapgoc/parse_with_padding.c")
-	loader.WrapGoC(_text_quote, _cfunc_quote, []loader.GoC{{"_quote", &S_quote, &F_quote}}, "sve_wrapgoc", "sve_wrapgoc/quote.c")
-	loader.WrapGoC(_text_f32toa, _cfunc_f32toa, []loader.GoC{{"_f32toa", &S_f32toa, &F_f32toa}}, "sve_wrapgoc", "sve_wrapgoc/f32toa.c")
-	loader.WrapGoC(_text_f64toa, _cfunc_f64toa, []loader.GoC{{"_f64toa", &S_f64toa, &F_f64toa}}, "sve_wrapgoc", "sve_wrapgoc/f64toa.c")
-	loader.WrapGoC(_text_skip_one_fast, _cfunc_skip_one_fast, []loader.GoC{{"_skip_one_fast", &S_skip_one_fast, &F_skip_one_fast}}, "sve_wrapgoc", "sve_wrapgoc/skip_one_fast.c")
-	loader.WrapGoC(_text_skip_one, _cfunc_skip_one, []loader.GoC{{"_skip_one", &S_skip_one, &F_skip_one}}, "sve_wrapgoc", "sve_wrapgoc/skip_one.c")
-	loader.WrapGoC(_text_u64toa, _cfunc_u64toa, []loader.GoC{{"_u64toa", &S_u64toa, &F_u64toa}}, "sve_wrapgoc", "sve_wrapgoc/u64toa.c")
+	vl := sve.VectorLength()
+	if _cfunc_quote(vl) == nil {
+		panic("sve_wrapgoc: natives were not generated for an SVE vector length of " +
+			strconv.Itoa(vl) + " bytes; CpuDetect should have refused this CPU")
+	}
+	loader.WrapGoC(_text_get_by_path, _cfunc_get_by_path(vl), []loader.GoC{{"_get_by_path", &S_get_by_path, &F_get_by_path}}, "sve_wrapgoc", "sve_wrapgoc/get_by_path.c")
+	loader.WrapGoC(_text_i64toa, _cfunc_i64toa(vl), []loader.GoC{{"_i64toa", &S_i64toa, &F_i64toa}}, "sve_wrapgoc", "sve_wrapgoc/i64toa.c")
+	loader.WrapGoC(_text_parse_with_padding, _cfunc_parse_with_padding(vl), []loader.GoC{{"_parse_with_padding", &S_parse_with_padding, &F_parse_with_padding}}, "sve_wrapgoc", "sve_wrapgoc/parse_with_padding.c")
+	loader.WrapGoC(_text_quote, _cfunc_quote(vl), []loader.GoC{{"_quote", &S_quote, &F_quote}}, "sve_wrapgoc", "sve_wrapgoc/quote.c")
+	loader.WrapGoC(_text_f32toa, _cfunc_f32toa(vl), []loader.GoC{{"_f32toa", &S_f32toa, &F_f32toa}}, "sve_wrapgoc", "sve_wrapgoc/f32toa.c")
+	loader.WrapGoC(_text_f64toa, _cfunc_f64toa(vl), []loader.GoC{{"_f64toa", &S_f64toa, &F_f64toa}}, "sve_wrapgoc", "sve_wrapgoc/f64toa.c")
+	loader.WrapGoC(_text_skip_one_fast, _cfunc_skip_one_fast(vl), []loader.GoC{{"_skip_one_fast", &S_skip_one_fast, &F_skip_one_fast}}, "sve_wrapgoc", "sve_wrapgoc/skip_one_fast.c")
+	loader.WrapGoC(_text_skip_one, _cfunc_skip_one(vl), []loader.GoC{{"_skip_one", &S_skip_one, &F_skip_one}}, "sve_wrapgoc", "sve_wrapgoc/skip_one.c")
+	loader.WrapGoC(_text_u64toa, _cfunc_u64toa(vl), []loader.GoC{{"_u64toa", &S_u64toa, &F_u64toa}}, "sve_wrapgoc", "sve_wrapgoc/u64toa.c")
 }

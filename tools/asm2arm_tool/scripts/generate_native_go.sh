@@ -271,9 +271,29 @@ if [ -d "${SRC_DIR}" ]; then
                 if [ ! -f "${asm_file}" ]; then
                     echo "Error: Assembly file not generated for sve_wrapgoc."
                 else
-                    echo ">>> Execute JIT mode for sve_wrapgoc..."
-                    ${TOOL_PATH} --debug --mode=JIT --source=${asm_file} --output=${SVE_WRAPGOC_OUTPUT} --link-ld=${SCRIPT_DIR}/link.ld --tmpl=${SVE_WRAPGOC_TMPL} \
-                    --package=sve_wrapgoc --features=+sve,+aes --vl=32 2>${cerr_log}
+                    # Generate once per supported SVE vector length. --vl feeds
+                    # only CalcSPDelta, so the machine code is identical every
+                    # time; what differs is the frame accounting handed to Go,
+                    # because scalable spill slots are VL bytes wide. Keeping one
+                    # copy of the text and one small table per VL lets the
+                    # vector length be chosen at load time instead of baked in.
+                    echo ">>> Execute JIT mode for sve_wrapgoc (vl=32, vl=16)..."
+                    for vl in 32 16; do
+                        vl_dir="${SVE_WRAPGOC_OUTPUT}/vl${vl}"
+                        mkdir -p "${vl_dir}"
+                        ${TOOL_PATH} --debug --mode=JIT --source=${asm_file} --output=${vl_dir} --link-ld=${SCRIPT_DIR}/link.ld --tmpl=${SVE_WRAPGOC_TMPL} \
+                        --package=sve_wrapgoc --features=+sve,+aes --vl=${vl} 2>>${cerr_log}
+                    done
+
+                    # text and stub are vector-length agnostic: take either copy.
+                    cp "${SVE_WRAPGOC_OUTPUT}/vl32/${base_name}_text_arm64.go" "${SVE_WRAPGOC_OUTPUT}/" 2>/dev/null
+                    cp "${SVE_WRAPGOC_OUTPUT}/vl32/${base_name}.go" "${SVE_WRAPGOC_OUTPUT}/" 2>/dev/null
+                    # merge_vl_subr.py refuses if entry/size differ, i.e. if the
+                    # text ever stops being vector-length agnostic.
+                    python3 "${SCRIPT_DIR}/merge_vl_subr.py" \
+                        32 "${SVE_WRAPGOC_OUTPUT}/vl32/${base_name}_subr.go" \
+                        16 "${SVE_WRAPGOC_OUTPUT}/vl16/${base_name}_subr.go" \
+                        "${SVE_WRAPGOC_OUTPUT}/${base_name}_subr.go"
 
                     if [ $? -eq 0 ]; then
                         echo ">>> Tool execution succeeded for sve_wrapgoc ${base_name}"

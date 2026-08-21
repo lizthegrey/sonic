@@ -420,8 +420,19 @@ func CpuDetect() bool {
 
 func init() {
 	if CpuDetect() {
-		UseSveWrapgoc = os.Getenv("SONIC_USE_SVE_WRAPGOC") == "1"
-		UseSveLinkname = os.Getenv("SONIC_USE_SVE_LINKNAME") == "1"
+		// A vector length of 0 means we could not establish it, which only
+		// happens on the legacy Kunpeng path; those parts are the width the
+		// natives were originally built for.
+		vl := sve.VectorLength()
+		if vl == 0 {
+			vl = sve.LinknameVectorLength
+		}
+		// sve_wrapgoc carries frame metadata for every width it supports and
+		// picks at load time; sve_linkname's frames are fixed at build time.
+		UseSveWrapgoc = os.Getenv("SONIC_USE_SVE_WRAPGOC") == "1" &&
+			sve.SupportsVectorLength(vl, sve.WrapgocVectorLengths[:])
+		UseSveLinkname = os.Getenv("SONIC_USE_SVE_LINKNAME") == "1" &&
+			vl == sve.LinknameVectorLength
 	}
 	if UseSveWrapgoc {
 		useSveWrapgoc()

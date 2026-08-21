@@ -14,27 +14,51 @@ const (
 )
 
 const (
-	_stack__skip_one = 256
+	_stack__skip_one_vl32 = 352
+	_stack__skip_one_vl16 = 320
 )
 
 const (
-	_size__skip_one = 13540
+	_size__skip_one = 19700
 )
 
 var (
-	_pcsp__skip_one = [][2]uint32{
+	_pcsp__skip_one_vl32 = [][2]uint32{
 		{0x1, 0},
-		{0x20, 208},
-		{0x24, 240},
-		{0x3034, 256},
-		{0x3038, 240},
-		{0x3054, 208},
-		{0x3058, 0},
-		{0x34e4, 256},
+		{0x20, 272},
+		{0x24, 336},
+		{0x4888, 352},
+		{0x488c, 336},
+		{0x48a8, 272},
+		{0x48ac, 0},
+		{0x4cf4, 352},
+	}
+	_pcsp__skip_one_vl16 = [][2]uint32{
+		{0x1, 0},
+		{0x20, 272},
+		{0x24, 304},
+		{0x4888, 320},
+		{0x488c, 304},
+		{0x48a8, 272},
+		{0x48ac, 0},
+		{0x4cf4, 320},
 	}
 )
 
-var _cfunc_skip_one = []loader.CFunc{
-	{"_skip_one_entry", 0, _entry__skip_one, 0, nil},
-	{"_skip_one", _entry__skip_one, _size__skip_one, _stack__skip_one, _pcsp__skip_one},
+// _cfunc_skip_one returns the frame metadata for an SVE vector length of vl
+// bytes, or nil if the natives were not generated for that width.
+func _cfunc_skip_one(vl int) []loader.CFunc {
+	switch vl {
+	case 32:
+		return []loader.CFunc{
+			{"_skip_one_entry", 0, _entry__skip_one, 0, nil},
+			{"_skip_one", _entry__skip_one, _size__skip_one, _stack__skip_one_vl32, _pcsp__skip_one_vl32},
+		}
+	case 16:
+		return []loader.CFunc{
+			{"_skip_one_entry", 0, _entry__skip_one, 0, nil},
+			{"_skip_one", _entry__skip_one, _size__skip_one, _stack__skip_one_vl16, _pcsp__skip_one_vl16},
+		}
+	}
+	return nil
 }

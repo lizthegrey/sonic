@@ -14,7 +14,8 @@ const (
 )
 
 const (
-	_stack__f64toa = 48
+	_stack__f64toa_vl32 = 48
+	_stack__f64toa_vl16 = 48
 )
 
 const (
@@ -22,7 +23,27 @@ const (
 )
 
 var (
-	_pcsp__f64toa = [][2]uint32{
+	_pcsp__f64toa_vl32 = [][2]uint32{
+		{0x1, 0},
+		{0x218, 0},
+		{0x594, 48},
+		{0x598, 0},
+		{0x5b0, 48},
+		{0x5b4, 0},
+		{0x880, 48},
+		{0x884, 0},
+		{0x8b0, 48},
+		{0x8b4, 0},
+		{0xb70, 48},
+		{0xb74, 0},
+		{0xdb8, 48},
+		{0xdbc, 0},
+		{0xff0, 48},
+		{0xff4, 0},
+		{0x1048, 0},
+		{0x3818, 48},
+	}
+	_pcsp__f64toa_vl16 = [][2]uint32{
 		{0x1, 0},
 		{0x218, 0},
 		{0x594, 48},
@@ -44,7 +65,20 @@ var (
 	}
 )
 
-var _cfunc_f64toa = []loader.CFunc{
-	{"_f64toa_entry", 0, _entry__f64toa, 0, nil},
-	{"_f64toa", _entry__f64toa, _size__f64toa, _stack__f64toa, _pcsp__f64toa},
+// _cfunc_f64toa returns the frame metadata for an SVE vector length of vl
+// bytes, or nil if the natives were not generated for that width.
+func _cfunc_f64toa(vl int) []loader.CFunc {
+	switch vl {
+	case 32:
+		return []loader.CFunc{
+			{"_f64toa_entry", 0, _entry__f64toa, 0, nil},
+			{"_f64toa", _entry__f64toa, _size__f64toa, _stack__f64toa_vl32, _pcsp__f64toa_vl32},
+		}
+	case 16:
+		return []loader.CFunc{
+			{"_f64toa_entry", 0, _entry__f64toa, 0, nil},
+			{"_f64toa", _entry__f64toa, _size__f64toa, _stack__f64toa_vl16, _pcsp__f64toa_vl16},
+		}
+	}
+	return nil
 }
