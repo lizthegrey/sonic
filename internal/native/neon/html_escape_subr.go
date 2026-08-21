@@ -12,25 +12,25 @@ const (
 )
 
 const (
-    _stack__html_escape = 32
+    _stack__html_escape = 48
 )
 
 const (
-    _size__html_escape = 5200
+    _size__html_escape = 5232
 )
 
 var (
     _pcsp__html_escape = [][2]uint32{
         {0x1, 0},
-        {0x3d4, 32},
-        {0x3d8, 0},
-        {0x3e8, 32},
-        {0x3ec, 0},
-        {0x40c, 32},
-        {0x410, 0},
-        {0x428, 32},
-        {0x42c, 0},
-        {0x1450, 32},
+        {0x3dc, 48},
+        {0x3e0, 0},
+        {0x3f4, 48},
+        {0x3f8, 0},
+        {0x41c, 48},
+        {0x420, 0},
+        {0x43c, 48},
+        {0x440, 0},
+        {0x1470, 48},
     }
 )
 

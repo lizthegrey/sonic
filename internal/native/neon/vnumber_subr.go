@@ -16,7 +16,7 @@ const (
 )
 
 const (
-    _size__vnumber = 23228
+    _size__vnumber = 23244
 )
 
 var (
@@ -24,7 +24,7 @@ var (
         {0x1, 0},
         {0x2f4, 112},
         {0x2f8, 0},
-        {0x5abc, 112},
+        {0x5acc, 112},
     }
 )
 

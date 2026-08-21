@@ -16,19 +16,19 @@ const (
 )
 
 const (
-    _size__validate_utf8 = 708
+    _size__validate_utf8 = 724
 )
 
 var (
     _pcsp__validate_utf8 = [][2]uint32{
         {0x1, 0},
-        {0x27c, 64},
-        {0x280, 0},
-        {0x294, 64},
-        {0x298, 0},
-        {0x2ac, 64},
-        {0x2b0, 0},
-        {0x2c4, 64},
+        {0x284, 64},
+        {0x288, 0},
+        {0x2a0, 64},
+        {0x2a4, 0},
+        {0x2bc, 64},
+        {0x2c0, 0},
+        {0x2d4, 64},
     }
 )
 

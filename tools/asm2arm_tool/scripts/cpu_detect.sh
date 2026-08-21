@@ -52,12 +52,17 @@ has_sve() {
     fi
 }
 
-# Generation imposes no requirement on the host CPU. Report what we are running
-# on and carry on.
+# Generation does not need arm64 *hardware* -- clang cross-compiles and
+# asm2arm_tool only parses text assembly -- but it does need headers for the
+# target. The natives include glibc via native/parsing.h, and cross-compiling
+# without an aarch64 sysroot silently yields a 32-bit ssize_t and miscompiled
+# natives. generate_native_go.sh locates a sysroot and hard-fails on a bad
+# header environment, so the gate here is informational only.
 check_build_host() {
-    echo ">>> Build host: $(uname -m) (generation is a cross-compilation; any host works)"
+    echo ">>> Build host: $(uname -m)"
     if ! is_arm64_host; then
-        echo ">>> Note: this host cannot run the generated natives. Use test_native_recover.sh on arm64 hardware."
+        echo ">>> Cross-generating: an aarch64 sysroot is required (see generate_native_go.sh),"
+        echo "    and this host cannot run the result. Test on arm64 via test_native_recover.sh."
     fi
 }
 

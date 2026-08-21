@@ -12,19 +12,19 @@ const (
 )
 
 const (
-    _stack__vstring = 144
+    _stack__vstring = 128
 )
 
 const (
-    _size__vstring = 2660
+    _size__vstring = 2628
 )
 
 var (
     _pcsp__vstring = [][2]uint32{
         {0x1, 0},
-        {0x9d0, 144},
-        {0x9d4, 0},
-        {0xa64, 144},
+        {0x9b4, 128},
+        {0x9b8, 0},
+        {0xa44, 128},
     }
 )
 

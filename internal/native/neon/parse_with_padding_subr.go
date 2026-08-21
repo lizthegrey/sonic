@@ -12,7 +12,7 @@ const (
 )
 
 const (
-    _stack__parse_with_padding = 128
+    _stack__parse_with_padding = 144
 )
 
 const (
@@ -23,9 +23,9 @@ var (
     _pcsp__parse_with_padding = [][2]uint32{
         {0x1, 0},
         {0x0, 0},
-        {0x13f0, 128},
+        {0x13f0, 144},
         {0x13f4, 0},
-        {0xdda4, 128},
+        {0xdda4, 144},
     }
 )
 

@@ -102,6 +102,64 @@ echo ">>> Using ${CLANG_PATH} compiler"
 echo ">>> Tool path: ${TOOL_PATH}"
 echo ">>> Output directory: ${OUTPUT_DIR}"
 
+# Resolve how to target aarch64, and prove the header environment is sane.
+#
+# The natives include glibc headers (native/parsing.h -> sys/types.h), so the
+# compiler needs headers for the *target*, not the host. Cross-compiling without
+# an aarch64 sysroot is the dangerous case: clang silently falls through to the
+# host's /usr/include, where __WORDSIZE resolves for the host and ssize_t ends up
+# as a 32-bit int. Every native taking or returning ssize_t is then miscompiled --
+# with no error, no warning, and a zero exit status. The resulting natives pass a
+# static inspection and then truncate lengths at runtime.
+#
+# On an arm64 host the native headers are already correct, so no extra flags are
+# needed and the output is bit-identical to what this script always produced.
+CLANG_TARGET_FLAGS=""
+machine="$(uname -m)"
+if [ "$machine" != "aarch64" ] && [ "$machine" != "arm64" ]; then
+    SYSROOT="${AARCH64_SYSROOT:-}"
+    if [ -z "${SYSROOT}" ]; then
+        for cand in /usr/aarch64-linux-gnu /usr/aarch64-unknown-linux-gnu /usr/local/aarch64-linux-gnu; do
+            if [ -d "${cand}" ]; then SYSROOT="${cand}"; break; fi
+        done
+    fi
+    if [ -z "${SYSROOT}" ]; then
+        echo "Error: cross-generating on ${machine} requires an aarch64 sysroot."
+        echo "       Without one, clang uses this host's headers and silently"
+        echo "       compiles ssize_t as a 32-bit int, miscompiling the natives."
+        echo "  Debian/Ubuntu: sudo apt-get install libc6-dev-arm64-cross"
+        echo "  Or point at one explicitly: AARCH64_SYSROOT=/path/to/sysroot $0"
+        exit 1
+    fi
+    echo ">>> Cross-generating with sysroot: ${SYSROOT}"
+    CLANG_TARGET_FLAGS="--target=aarch64-linux-gnu --sysroot=${SYSROOT}"
+fi
+
+# Belt and braces: assert the target's type widths regardless of how we got here.
+verify_target_headers() {
+    local probe_dir probe_c
+    probe_dir="$(mktemp -d)"
+    probe_c="${probe_dir}/probe.c"
+    cat > "${probe_c}" <<'PROBE'
+#include <sys/types.h>
+#include <stdint.h>
+_Static_assert(sizeof(ssize_t) == 8, "ssize_t is not 64-bit");
+_Static_assert(sizeof(void *) == 8, "pointer is not 64-bit");
+_Static_assert(sizeof(long) == 8, "long is not 64-bit");
+PROBE
+    if ! ${CLANG_PATH} ${CLANG_TARGET_FLAGS} -march=armv8-a+simd -fsyntax-only "${probe_c}" 2>"${probe_dir}/err"; then
+        echo "Error: the target header environment is wrong -- refusing to generate."
+        sed 's/^/    /' "${probe_dir}/err"
+        echo "  These natives pass ssize_t across the Go/C boundary. Generating"
+        echo "  against headers with the wrong type widths produces natives that"
+        echo "  look fine but truncate lengths at runtime."
+        rm -rf "${probe_dir}"
+        exit 1
+    fi
+    rm -rf "${probe_dir}"
+    echo ">>> Target header check passed (ssize_t/long/pointer are 64-bit)"
+}
+
 # 检查工具是否存在
 if [ ! -f "${TOOL_PATH}" ]; then
     echo "Error: Tool not found. Please run build_tool.sh first."
@@ -113,6 +171,8 @@ if [ ! -f "${CLANG_PATH}" ]; then
     echo "Error: Clang not found. Please run build_tool.sh first."
     exit 1
 fi
+
+verify_target_headers
 
 # 遍历native目录下的.c文件
 echo ""
@@ -136,7 +196,7 @@ if [ -d "${SRC_DIR}" ]; then
                 # 编译生成汇编文件（neon版本）
                 echo ">>> Compiling to assembly (neon)... --> ${asm_file}"
                 ${CLANG_PATH} \
-                -g0 -fverbose-asm -fstack-usage -fsigned-char -Wa,--no-size-directive -fno-ident -fno-jump-tables \
+                ${CLANG_TARGET_FLAGS} -g0 -fverbose-asm -fstack-usage -fsigned-char -Wa,--no-size-directive -fno-ident -fno-jump-tables \
                 -ffixed-x28 -ffixed-x18 -ffixed-x9 -Wno-error -Wno-nullability-completeness -Wno-incompatible-pointer-types \
                 -mllvm=--go-frame -mllvm=--enable-shrink-wrap=0 -mno-red-zone \
                 -fno-stack-protector -nostdlib -O3 -fno-asynchronous-unwind-tables -fno-builtin -fno-exceptions \
@@ -168,7 +228,7 @@ if [ -d "${SRC_DIR}" ]; then
 
                 echo ">>> Compiling to assembly (sve)... --> ${asm_file}"
                 ${CLANG_PATH} \
-                -g0 -fverbose-asm -fstack-usage -fsigned-char -Wa,--no-size-directive -fno-ident -fno-jump-tables \
+                ${CLANG_TARGET_FLAGS} -g0 -fverbose-asm -fstack-usage -fsigned-char -Wa,--no-size-directive -fno-ident -fno-jump-tables \
                 -ffixed-x28 -ffixed-x18 -ffixed-x9 -Wno-error -Wno-nullability-completeness -Wno-incompatible-pointer-types\
                 -mllvm -disable-constant-hoisting -mllvm=--go-frame -fno-addrsig -no-integrated-as \
                 -mno-red-zone -fno-stack-protector -nostdlib -O3 -fno-asynchronous-unwind-tables -fno-builtin -fno-exceptions \
@@ -201,7 +261,7 @@ if [ -d "${SRC_DIR}" ]; then
 
                 echo ">>> Compiling to assembly (sve)... --> ${asm_file}"
                 ${CLANG_PATH} \
-                -g0 -fverbose-asm -fstack-usage -fsigned-char -Wa,--no-size-directive -fno-ident -fno-jump-tables \
+                ${CLANG_TARGET_FLAGS} -g0 -fverbose-asm -fstack-usage -fsigned-char -Wa,--no-size-directive -fno-ident -fno-jump-tables \
                 -ffixed-x28 -ffixed-x18 -ffixed-x9 -Wno-error -Wno-nullability-completeness -Wno-incompatible-pointer-types\
                 -mllvm -disable-constant-hoisting -mllvm=--go-frame -fno-addrsig -no-integrated-as \
                 -mno-red-zone -fno-stack-protector -nostdlib -O3 -fno-asynchronous-unwind-tables -fno-builtin -fno-exceptions \

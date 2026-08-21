@@ -16,15 +16,15 @@ const (
 )
 
 const (
-    _size__skip_one_fast = 3508
+    _size__skip_one_fast = 3572
 )
 
 var (
     _pcsp__skip_one_fast = [][2]uint32{
         {0x1, 0},
-        {0xd0c, 208},
-        {0xd10, 0},
-        {0xdb4, 208},
+        {0xd40, 208},
+        {0xd44, 0},
+        {0xdf4, 208},
     }
 )
 
