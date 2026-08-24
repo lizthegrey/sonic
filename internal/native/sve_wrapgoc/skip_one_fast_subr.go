@@ -14,23 +14,23 @@ const (
 )
 
 const (
-	_stack__skip_one_fast = 224
+	_stack__skip_one_fast = 208
 )
 
 const (
-	_size__skip_one_fast = 4324
+	_size__skip_one_fast = 4308
 )
 
 var (
 	_pcsp__skip_one_fast = [][2]uint32{
 		{0x1, 0},
-		{0x1c, 176},
-		{0x20, 208},
-		{0x101c, 224},
-		{0x1020, 208},
-		{0x1038, 176},
-		{0x103c, 0},
-		{0x10e4, 224},
+		{0x1c, 160},
+		{0x20, 192},
+		{0x100c, 208},
+		{0x1010, 192},
+		{0x1028, 160},
+		{0x102c, 0},
+		{0x10d4, 208},
 	}
 )
 

@@ -234,4 +234,36 @@ static always_inline void sve_number_masks(const char *s, uint64_t n,
     *sign = ms;
 }
 
+/*
+ * One bit per byte over the n-byte window at s, set where the byte is NOT
+ * one of the four JSON whitespace characters (space, tab, LF, CR). n must be
+ * <= 64.
+ *
+ * The AVX2/SSE originals this replaces answer the same question with a
+ * shuffle-table trick: index a 32-byte table by byte&0x1F and compare against
+ * the original byte. That trick does not survive SVE unchanged -- the table
+ * itself is loaded as an svuint8_t, so at VL<32 the register holds only the
+ * table's first VL bytes, and svtbl_u8 zeroes any index the register doesn't
+ * have a lane for. A byte whose low 5 bits pick an index past that truncated
+ * width (e.g. 0x39, low bits 25) then looks up as 0 instead of matching,
+ * misclassifying it. Since there are only four whitespace bytes, comparing
+ * against each directly sidesteps the table (and the truncation) entirely.
+ */
+static always_inline uint64_t sve_nonspace_mask(const char *s, uint64_t n) {
+    uint64_t step = sve_chunk_bytes();
+    uint64_t mask = 0;
+    for (uint64_t off = 0; off < n; off += step) {
+        svbool_t pg = svwhilelt_b8_u64(off, n);
+        svuint8_t v = svld1_u8(pg, (const uint8_t *)s + off);
+        svbool_t sp = svcmpeq_n_u8(pg, v, (uint8_t)' ');
+        svbool_t tab = svcmpeq_n_u8(pg, v, (uint8_t)'\t');
+        svbool_t lf = svcmpeq_n_u8(pg, v, (uint8_t)'\n');
+        svbool_t cr = svcmpeq_n_u8(pg, v, (uint8_t)'\r');
+        uint64_t space = sve_pred_bits(&sp) | sve_pred_bits(&tab) |
+                         sve_pred_bits(&lf) | sve_pred_bits(&cr);
+        mask |= space << off;
+    }
+    return ~mask;
+}
+
 #endif /* __SVE__ */

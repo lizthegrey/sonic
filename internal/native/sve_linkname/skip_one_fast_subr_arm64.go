@@ -15,7 +15,7 @@ var (
 )
 
 const (
-	_stack__skip_one_fast = 224
+	_stack__skip_one_fast = 208
 )
 
 var (
